@@ -6,7 +6,6 @@ const {initCli, printTodo} = require('./utils');
 require('./readline_settings');
 const {setProgram} = require('./commander_settings');
 
-
 let timeoutObj, todos, setting;
 
 // check if this works.
@@ -61,4 +60,4 @@ initCli()
         };
 
         ask();
-    })
+    });
