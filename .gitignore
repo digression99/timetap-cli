@@ -1,0 +1,11 @@
+
+#playground
+/playground
+
+#node_modules
+/node_modules
+
+# .json files.
+
+*.json
+!package.json
