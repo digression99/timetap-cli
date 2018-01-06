@@ -1,31 +1,32 @@
-const {printTodo, saveCli} = require('./utils');
-const fs = require('fs');
-const path = require('path');
+const {printTodo, saveCli, startPomo, finishPomo} = require('./utils');
+const moment = require('moment');
 
-const setProgram = (prog, {todos, setting, argv, timeoutObj, QUESTION_MESSAGE, TIME_PER_SECOND}) => {
-    // prog
-    //     .version('0.1.0')
-    //     .option('-p, --peppers', 'Add peppers')
-    //     .option('-P, --pineapple', 'Add pineapple')
-    //     .option('-b, --bbq-sauce', 'Add bbq sauce')
-    //     .option('-c, --cheese [type]', 'Add the specified type of cheese [marble]', 'marble')
-    //
-    // prog
-    //     .version('0.1.0')
-    //     .option('-C, --chdir <path>', 'change the working directory')
-    //     .option('-c, --config <path>', 'set config path. defaults to ./deploy.conf')
-    //     .option('-T, --no-tests', 'ignore test hook');
+const setProgram = (prog, {todos, setting, argv, timeoutObj, afterStartPomo}) => {
 
     prog
-        .version('1.0.0');
+        .version('0.1.0');
 
     prog
         .command('exit')
         .description('exit the program.')
         .action (() => {
-            console.log('bye~');
-            saveCli(todos, setting);
-            process.exit(0);
+            saveCli(todos, setting)
+                .then(() => {
+                    console.log('bye~');
+                    process.exit(0);
+
+                })
+                .catch((err) => {
+                    console.log(err);
+                    process.exit(0);
+                })
+        })
+        .on('-h, --help', function() {
+            console.log('  Examples:');
+            console.log();
+            console.log('    $ deploy exec sequential');
+            console.log('    $ deploy exec async');
+            console.log();
         });
 
     prog
@@ -40,27 +41,37 @@ const setProgram = (prog, {todos, setting, argv, timeoutObj, QUESTION_MESSAGE, T
                 // if (options.time) console.log('with timestamps.');
                 // if (options.count) console.log('with count, ', options.count);
             });
+        })
+        .on('-h, --help', function() {
+            console.log('  Examples:');
+            console.log();
+            console.log('    $ deploy exec sequential');
+            console.log('    $ deploy exec async');
+            console.log();
         });
 
     prog
         .command('check')
         .description('check the setting.')
         .option("-v, --verify", "show all the details")
+        .option("-t, --time", "check remaining time if pomo started.")
         .action((options) => {
             setting.todoId = setting.todoId || todos[0].id;
             let todo = todos.find(todo => {
-                // console.log('typeof todo.id : ', typeof todo.id);
-                // console.log('typeof setting.todoId : ', typeof setting.todoId);
                 return todo.id === setting.todoId;
             });
-            // console.log('setting.todoId : ', setting.todoId);
-            // console.log('todo : ', todo);
 
             console.log(`duration : ${setting.duration} min.`);
             printTodo(todo);
-            // Object.entries(setting).forEach( (ent, index) => {
-            //     console.log(`${ent[0]} : ${ent[1]}`);
-            // });
+            setting.startedAt && console.log(`pomo started : ${setting.startedAt}`);
+            setting.endedAt && console.log(`pomo ended : ${setting.endedAt}`);
+        })
+        .on('-h, --help', function() {
+            console.log('  Examples:');
+            console.log();
+            console.log('    $ deploy exec sequential');
+            console.log('    $ deploy exec async');
+            console.log();
         });
 
     prog
@@ -70,12 +81,20 @@ const setProgram = (prog, {todos, setting, argv, timeoutObj, QUESTION_MESSAGE, T
         .option("-i --id [todoId]", "change todo.")
         .action(options => {
             let duration = options.time || 25;
+
             let todoId = options.id ? parseInt(options.id, 10) : (setting.todoId || todos[0].id);
             setting = { // not changing. how can I?...
                 ...setting,
                 duration,
                 todoId
             };
+        })
+        .on('-h, --help', function() {
+            console.log('  Examples:');
+            console.log();
+            console.log('    $ deploy exec sequential');
+            console.log('    $ deploy exec async');
+            console.log();
         });
 
     prog
@@ -83,48 +102,39 @@ const setProgram = (prog, {todos, setting, argv, timeoutObj, QUESTION_MESSAGE, T
         .description('start the pomo. when finished, remove todo.')
         .option("-w, --without", "without removing pomo.")
         .action(options => {
-            console.log('start pomo!');
-            if (options.without) console.log('without removing it!');
             if (timeoutObj) return console.log('pomo already started!');
-            timeoutObj = setTimeout(() => {
-                console.log('pomo finished!');
-                printTodo(todos.find(todo => setting.todoId === todo.id));
-                console.log(QUESTION_MESSAGE);
-                timeoutObj = undefined;
-            }, setting.duration * TIME_PER_SECOND);
+            startPomo(todos, setting, options, afterStartPomo)
+                .then(({ newSetting, newTimeoutObj }) => {
+                    setting = newSetting;
+                    timeoutObj = newTimeoutObj;
+
+                    console.log('start pomo!');
+                })
+                .catch(err => console.log(err));
+        })
+        .on('-h, --help', function() {
+            console.log('  Examples:');
+            console.log();
+            console.log('    $ deploy exec sequential');
+            console.log('    $ deploy exec async');
+            console.log();
         });
 
     prog
         .command('stop')
         .description('stop the pomo if it started.')
         .option('-w --with', "with removing pomo.")
+        .option('-s --save', "not removing the records.")
         .action(options => {
             if (timeoutObj) {
                 console.log('stop pomo!');
                 if (options.with) console.log('with removing it!');
+
+                setting.endedAt = moment.valueOf();
                 // remove timeoutObj.
                 clearTimeout(timeoutObj);
                 timeoutObj = undefined;
             } else return console.log('start pomo first!');
-        });
-
-    prog
-        .command('setup [env]')
-        .description('run setup commands for all envs')
-        .option("-s, --setup_mode [mode]", "Which setup mode to use")
-        .action(function(env, options) {
-            var mode = options.setup_mode || "normal";
-            env = env || 'all';
-            console.log('setup for %s env(s) with %s mode', env, mode);
-        });
-
-    prog
-        .command('exec <cmd>')
-        .alias('ex')
-        .description('execute the given remote cmd')
-        .option("-e, --exec_mode <mode>", "Which exec mode to use")
-        .action(function(cmd, options){
-            console.log('exec "%s" using %s mode', cmd, options.exec_mode);
         })
         .on('-h, --help', function() {
             console.log('  Examples:');
@@ -136,8 +146,8 @@ const setProgram = (prog, {todos, setting, argv, timeoutObj, QUESTION_MESSAGE, T
 
     prog
         .command('*')
-        .action(function(env){
-            console.log('deploying "%s"', env);
+        .action((env) => {
+            console.log('wrong command, you entered : "%s". \n please get help by entering --help.', env);
         });
 
     prog.parse(argv);
