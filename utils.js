@@ -1,29 +1,74 @@
+const moment = require('moment');
 const fs = require('fs');
 const path = require('path');
-const moment = require('moment');
-const {TIME_PER_SECOND, QUESTION_MESSAGE} = require('./constants');
+
+const printTodo = (todo) => {
+    console.log(`${todo.text}, priority : ${todo.priority}`);
+};
+
+const printSetting = (setting, todos) => {
+    console.log('* now setting ');
+    console.log(`* time :  ${setting.time}`);
+    console.log(`* todo :  ${todos[setting.index].text}`);
+    if (setting.startedAt) console.log('pomo started at : ', moment(setting.startedAt).format('MMMM Do YYYY, h:mm:ss a'));
+    if (setting.endedAt) console.log('pomo ended at : ', moment(setting.endedAt).format('MMMM Do YYYY, h:mm:ss a'));
+};
+
+const finishPomo = (setting) => {
+    // take these logic to function.
+    setting.endedAt = moment().valueOf();
+    clearTimeout(setting.timeoutObj);
+    setting.timeoutObj = null;
+};
+
+const startPomo = (setting, todos, myEmitter) => {
+    setting.startedAt = moment().valueOf();
+    setting.timeoutObj = setTimeout(() => {
+        myEmitter.emit('pomo_done', {setting, todos});
+    }, setting.time * 1000);
+};
 
 const initCli = () => {
     return new Promise((resolve, reject) => {
-        fs.readFile(path.join(__dirname, 'seed.json'), (err, todos) => {
-            if (err) reject(err);
-            fs.readFile(path.join(__dirname, 'setting.json'), (err, setting) => {
+        fs.access(path.join(__dirname, 'saved_seed.json'), fs.constants.R_OK | fs.constants.W_OK, (err) => {
+            let seedPath = "";
+            if (err) {
+                //console.log('no saved seed. using init seed.');
+                seedPath = path.join(__dirname, 'seed.json');
+            } else {
+                //console.log('saved seed exists. using saved seed.');
+                seedPath = path.join(__dirname, 'saved_seed.json');
+            }
+            fs.readFile(seedPath, (err, todos) => {
                 if (err) reject(err);
-                resolve({
-                    initTodos : JSON.parse(todos),
-                    initSetting : JSON.parse(setting)
+                fs.access(path.join(__dirname, 'saved_setting.json'), fs.constants.R_OK | fs.constants.W_OK, (err) => {
+                    let settingPath = "";
+                    if (err) {
+                        //console.log('no saved setting. using init setting.');
+                        settingPath = path.join(__dirname, 'setting.json');
+                    } else {
+                        //console.log('saved setting exists. using saved setting.');
+                        settingPath = path.join(__dirname, 'saved_setting.json');
+                    }
+                    fs.readFile(settingPath, (err, setting) => {
+                        if (err) reject(err);
+                        resolve({
+                            initTodos : JSON.parse(todos),
+                            initSetting : JSON.parse(setting)
+                        });
+                    });
                 });
-            })
-        })
+            });
+        });
     })
 };
 
 const saveCli = (todos, setting) => {
     console.log('saving!');
     return new Promise((resolve, reject) => {
-        fs.writeFile(path.join(__dirname, 'seed_saved.json'), JSON.stringify(todos), (err) => {
+        fs.writeFile(path.join(__dirname, 'saved_seed.json'), JSON.stringify(todos, undefined, 2), (err) => {
             if (err) reject(err);
-            fs.writeFile(path.join(__dirname, 'setting_saved.json'), JSON.stringify(setting), (err) => {
+            fs.writeFile(path.join(__dirname, 'saved_setting.json'), JSON.stringify(setting, undefined, 2), (err) => {
                 if (err) reject(err);
                 resolve();
             })
@@ -31,46 +76,8 @@ const saveCli = (todos, setting) => {
     });
 };
 
-const printTodo = (todo) => {
-    console.log(`todo [${todo.id}] : ${todo.text}, priority : ${todo.priority}`);
-};
-
-const startPomo = (todos, setting, options, callback) => {
-    return new Promise((resolve, reject) => {
-        try {
-            if (options.without) console.log('without removing it!');
-
-            setting.startedAt = moment.valueOf();
-            let newTimeoutObj = setTimeout(() => {
-                callback(todos, setting);
-            }, setting.duration * TIME_PER_SECOND);
-
-            // let newTimeoutObj = setTimeout(() => {
-            //
-            //     // console.log(QUESTION_MESSAGE);
-            //     //setting.timeoutObj =
-            // }, setting.duration * TIME_PER_SECOND);
-            // how can I undefine timeoutObj in app.js after setTimeout???
-            // use setting? yeah!
-            // no no no, use
-            resolve({
-                newTimeoutObj,
-                newSetting : setting
-            });
-        } catch (e) {
-            reject(e);
-        }
-    })
-};
-
-const finishPomo = (todos, setting) => {
-
-}
-
 module.exports = {
-    initCli,
-    saveCli,
-    printTodo,
-    startPomo,
-    finishPomo
+    printTodo, printSetting,
+    finishPomo, startPomo,
+    initCli, saveCli
 };

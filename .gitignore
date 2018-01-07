@@ -2,13 +2,20 @@
 # .idea
 /.idea
 
-#playground
+# playground
 /playground
+/playground-2
 
-#node_modules
+# old
+/old-v1
+
+# node_modules
 /node_modules
 
 # .json files.
-
 *.json
 !package.json
+saved_seed.json
+saved_setting.json
+seed.json
+setting.json
