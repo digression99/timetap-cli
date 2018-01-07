@@ -1,16 +1,18 @@
 ## readme
-### timetap-cli.
+### timetap-cli.v2
 
-**--help to see helps.**
+**`help` to see help.**
 
-cli interface
+*v3(soon)* - fetch todolist from todoist using axios, add more options, use rxjs, code refactoring in event-emitter.
 
-- add todo  
--> don't modify todolist for now.
--> just fetch it from the server.
+*v2* - changed to event-driven paradigm. (sort of).
+
+*v1* - initial version.  
+
+**cli description**
 
 - fetch todolist  
--> use file system (or axios) to fetch todolist.  
+-> use file system (or later, axios) to fetch todolist.  
 -> automatically fetch when cli starts.  
 
 - period set  
@@ -19,20 +21,20 @@ cli interface
 
 - check pomo setting  
 -> show settings.  
--> save file to setting.json.  
+-> save file to `setting.json`  
 -> command : check  
 
 - pomo start
 -> setTimeout starts with time in setting.  
--> command : start  
+-> command : `start`
 
 - pomo stop
 -> if started, stop the pomo.  
--> command : stop
+-> command : `stop`
 
 - pomo done
 -> automatically alert if ends.  
 
 - show todos, select todo  
--> show todos -- command : todo  
+-> show todos -- command : `todo`  
 -> select todo -- command : `set -i [todoId]`
